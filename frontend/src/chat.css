@@ -1,0 +1,31 @@
+.chat-history { display: flex; flex-direction: column; gap: 22px; margin-top: 24px; }
+.chat-turn { display: grid; gap: 7px; }
+.chat-turn > span { color: var(--muted); font-size: 11px; font-weight: 500; }
+.chat-turn.user > span { text-align: right; }
+.chat-message { color: #cbd2ce; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.chat-turn.user .chat-message { background: #262e27; padding: 11px 13px; border-radius: 6px; }
+.chat-message p { margin: 0 0 8px; }
+.chat-message p:last-child { margin-bottom: 0; }
+.chat-message strong { color: var(--text); font-weight: 600; }
+.chat-message .markdown-bullet { padding-left: 10px; text-indent: -10px; }
+.chat-message .markdown-heading { color: var(--text); font-size: 13px; font-weight: 600; }
+.chat-message.typing { color: var(--muted); }
+.agent-panel.has-history .suggestions { margin-top: 12px; }
+.agent-panel.has-history .suggestions button { min-height: 44px; padding-block: 9px; font-size: 10px; }
+
+.action-review { margin-top: 10px; padding: 13px; border: 1px solid #52634f; border-radius: 8px; background: #1d251f; color: var(--text); }
+.action-review-heading { display: flex; justify-content: space-between; gap: 12px; color: #a9d5a3; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.action-review-heading small { color: #d7c77e; font-size: 10px; letter-spacing: 0; text-transform: none; }
+.action-review > strong { display: block; margin-top: 7px; font-size: 13px; }
+.action-intent { margin: 7px 0 0; color: #d9e2da; font-size: 12px; line-height: 1.45; }
+.action-entity { margin: 5px 0 0; color: #b8c3ba; font-size: 12px; }
+.action-review dl { display: grid; gap: 5px; margin: 10px 0 0; }
+.action-review dl div { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; }
+.action-review dt { color: var(--muted); }
+.action-review dd { margin: 0; color: #d9e2da; text-align: right; }
+.action-review-actions { display: flex; gap: 8px; margin-top: 12px; }
+.action-review-actions button { flex: 1; border: 0; border-radius: 5px; background: #b8e3a7; color: #172016; cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; padding: 8px 10px; }
+.action-review-actions .reject { background: transparent; border: 1px solid #7e8b80; color: #dce4dd; }
+.action-review.action-executed { border-color: #4f8f6e; background: #1a2920; }
+.action-review.action-rejected, .action-review.action-expired, .action-review.action-failed { border-color: #715e5e; background: #282020; }
+.action-error { color: #f0b5ae; font-size: 11px; margin: 9px 0 0; }

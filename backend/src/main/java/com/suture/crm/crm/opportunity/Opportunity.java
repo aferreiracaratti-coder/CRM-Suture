@@ -6,10 +6,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import java.sql.Types;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
 
 @Entity
 @Table(name = "opportunity")
@@ -21,7 +23,8 @@ public class Opportunity {
     @Column(nullable = false) private String name;
     @Column(nullable = false) private String stage;
     @Column(name = "estimated_value") private BigDecimal estimatedValue;
-    @Column(nullable = false) private String currency;
+    @JdbcTypeCode(Types.CHAR)
+    @Column(nullable = false, length = 3, columnDefinition = "char(3)") private String currency;
     private Short probability;
     @Column(name = "expected_close_date") private LocalDate expectedCloseDate;
     @Column(name = "next_action") private String nextAction;

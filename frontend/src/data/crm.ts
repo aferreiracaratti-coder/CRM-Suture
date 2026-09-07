@@ -47,6 +47,7 @@ export type CrmTask = {
   id: string
   companyId: string
   title: string
+  description?: string
   due: string
   priority: string
   done: boolean
@@ -67,6 +68,9 @@ export const initialCompanies: Company[] = [
   { id: 'holiday-inn', name: 'Holiday Inn Montevideo / El Quijote', industry: 'Hotelería / gastronomía', city: 'Montevideo', country: 'Uruguay', phone: '+598 2902 0001', email: 'reservas@himontevideo.com.uy' },
   { id: 'uruguay-pleno', name: 'Uruguay Pleno', industry: null, city: null, country: 'Uruguay' },
   { id: 'panda-cou', name: 'Panda Cou', industry: null, city: null, country: 'Colombia' },
+  { id: 'squania', name: 'Squania Suite', industry: null, city: null, country: 'Uruguay' },
+  { id: 'acruxs', name: 'Acruxs', industry: null, city: null, country: 'Uruguay' },
+  { id: 'paramuno', name: 'Paramuno', industry: null, city: null, country: 'Uruguay' },
 ]
 
 export const initialContacts: Contact[] = [
@@ -106,6 +110,9 @@ export const initialOpportunities: Opportunity[] = [
   { id: 'opp-francis', companyId: 'francis', contactId: 'alberto-latarowski', name: 'Integraciones, reporting y CRM', stage: 'NEW' },
   { id: 'opp-holiday', companyId: 'holiday-inn', name: 'Integración hotel-restaurante y eventos', stage: 'NEW' },
   { id: 'opp-panda', companyId: 'panda-cou', name: 'Desarrollo web / software', stage: 'QUALIFIED', nextAction: 'Retomar conversación con decisor' },
+  { id: 'opp-squania', companyId: 'squania', name: 'Oportunidad Squania Suite', stage: 'LOST', nextAction: 'Revisar motivo de pérdida' },
+  { id: 'opp-acruxs', companyId: 'acruxs', name: 'Oportunidad Acruxs', stage: 'LOST', nextAction: 'Revisar motivo de pérdida' },
+  { id: 'opp-paramuno', companyId: 'paramuno', name: 'Oportunidad Paramuno', stage: 'LOST', nextAction: 'Revisar motivo de pérdida' },
 ]
 
 export const initialCrmTasks: CrmTask[] = [
