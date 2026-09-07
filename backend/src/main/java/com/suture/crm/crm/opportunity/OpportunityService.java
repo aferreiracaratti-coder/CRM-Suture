@@ -47,6 +47,15 @@ public class OpportunityService {
         return OpportunityResponse.from(opportunity);
     }
 
+    @Transactional
+    public void delete(UUID tenantId, UUID actorId, UUID id) {
+        Opportunity opportunity = opportunities.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Oportunidad no encontrada"));
+        opportunities.delete(opportunity);
+        events.publish(tenantId, "OPPORTUNITY_DELETED", "OPPORTUNITY", id, opportunity.getName());
+        audit.recordUserAction(tenantId, actorId, "OPPORTUNITY_DELETED", "OPPORTUNITY", id, opportunity.getName());
+    }
+
     private void assertReferencesBelongToTenant(UUID tenantId, UUID companyId, UUID contactId) {
         if (companyId == null || !companies.existsByIdAndTenantId(companyId, tenantId)) {
             throw new ResourceNotFoundException("Empresa no encontrada");

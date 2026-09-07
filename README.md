@@ -16,13 +16,14 @@ npm.cmd install
 npm.cmd run dev
 ```
 
-La API, PostgreSQL y OpenAI no forman parte de esta primera pantalla: la interfaz simula información operacional para validar el flujo antes de persistir datos.
+El frontend consume los endpoints del backend y persiste los datos en PostgreSQL.
+El agente OpenAI/Syna queda integrado como capa separada.
 
 ## Backend y base
 
 El backend queda preparado para PostgreSQL y no toca ninguna base actual. Durante esta etapa se puede avanzar en módulos, contratos y tests sin una base local corriendo.
 
-Cuando el entorno pase a Linux, `compose.yaml` levantará una base aislada llamada `suture_crm` y un volumen propio; recién entonces se ejecutará la API contra PostgreSQL y Flyway aplicará la migración inicial.
+`compose.yaml` levanta una base aislada llamada `suture_crm` y un volumen propio; la API se ejecuta contra PostgreSQL y Flyway aplica las migraciones `V1` a `V7`.
 
 Para cargar el esquema y los datos iniciales manualmente con PostgreSQL:
 

@@ -55,9 +55,14 @@ La primera ejecución aplica las migraciones `V1` a `V7` y crea el tenant inicia
 - `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`.
 - `GET /api/users` y mutaciones de usuarios, sólo para `CRM_ADMIN`.
 - `GET /api/companies` y `POST /api/companies`.
+- `DELETE /api/companies/{id}`.
 - `GET /api/leads`, `/api/customers`, `/api/tasks` y `/api/deals` para Syna.
+- `GET/POST /api/crm/leads` y `DELETE /api/crm/leads/{id}`.
 - `GET /api/contacts?companyId={id}` y `POST /api/contacts`.
+- `DELETE /api/contacts/{id}`.
 - `GET /api/opportunities`, `POST /api/opportunities` y `PATCH /api/opportunities/{id}/stage`.
+- `DELETE /api/opportunities/{id}`.
+- `GET/POST /api/crm/tasks`, `PATCH /api/crm/tasks/{id}` y `DELETE /api/crm/tasks/{id}`.
 - `GET /api/dashboard/today`.
 
 Crear empresas, contactos u oportunidades persiste un evento de dominio y una entrada de auditoría. Los cambios de etapa de oportunidad siguen el mismo recorrido por servicios de dominio.

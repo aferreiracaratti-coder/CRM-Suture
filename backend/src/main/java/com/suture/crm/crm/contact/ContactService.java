@@ -26,6 +26,11 @@ public class ContactService {
         return contacts.findByTenantIdAndCompanyIdOrderByFirstNameAscLastNameAsc(tenantId, companyId).stream().map(ContactResponse::from).toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<ContactResponse> listAll(UUID tenantId) {
+        return contacts.findByTenantIdOrderByFirstNameAscLastNameAsc(tenantId).stream().map(ContactResponse::from).toList();
+    }
+
     @Transactional
     public ContactResponse create(UUID tenantId, UUID actorId, CreateContactRequest request) {
         assertCompanyBelongsToTenant(tenantId, request.companyId());
@@ -34,6 +39,16 @@ public class ContactService {
         events.publish(tenantId, "CONTACT_CREATED", "CONTACT", contact.getId(), name);
         audit.recordUserAction(tenantId, actorId, "CONTACT_CREATED", "CONTACT", contact.getId(), name);
         return ContactResponse.from(contact);
+    }
+
+    @Transactional
+    public void delete(UUID tenantId, UUID actorId, UUID id) {
+        Contact contact = contacts.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Contacto no encontrado"));
+        contacts.delete(contact);
+        String name = contact.getFirstName() + (contact.getLastName() == null ? "" : " " + contact.getLastName());
+        events.publish(tenantId, "CONTACT_DELETED", "CONTACT", id, name);
+        audit.recordUserAction(tenantId, actorId, "CONTACT_DELETED", "CONTACT", id, name);
     }
 
     private void assertCompanyBelongsToTenant(UUID tenantId, UUID companyId) {

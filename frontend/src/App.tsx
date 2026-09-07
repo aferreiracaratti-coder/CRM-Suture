@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { CrmViews } from './components/CrmViews'
-import { initialCompanies, initialContacts, initialCrmTasks, initialLeads, initialOpportunities, type Company, type Contact, type CrmTask, type Lead, type Opportunity, type OpportunityStage } from './data/crm'
-import { priorityLeads } from './data/prospecting'
+import type { Company, Contact, CrmTask, Lead, Opportunity, OpportunityStage } from './data/crm'
+import { api, type ApiCompany, type ApiContact, type ApiDashboard, type ApiLead, type ApiOpportunity, type ApiTask } from './api'
 import './App.css'
 import './auth.css'
 import './chat.css'
@@ -14,6 +14,76 @@ type PendingAction = { id: string; conversationId?: string; toolName: string; ri
 type ChatMessage = { id: string; role: ChatRole; content: string; pendingActions?: PendingAction[] }
 type ConversationPayload = { messages: Array<{ id: string; role: string; content: string }> }
 type AuthUser = { id: string; tenantId: string; email: string; name: string; roles: string[] }
+
+function toCompany(value: ApiCompany): Company {
+  return {
+    id: value.id,
+    name: value.name,
+    industry: value.industry ?? null,
+    city: value.city ?? null,
+    country: value.country ?? 'Uruguay',
+    phone: value.phone,
+    whatsapp: value.whatsapp,
+    email: value.email,
+  }
+}
+
+function toContact(value: ApiContact): Contact {
+  return {
+    id: value.id,
+    companyId: value.companyId,
+    name: [value.firstName, value.lastName].filter(Boolean).join(' '),
+    role: value.role,
+    email: value.email,
+    phone: value.phone,
+  }
+}
+
+function toLead(value: ApiLead): Lead {
+  return {
+    id: value.id,
+    companyId: value.companyId,
+    contactId: value.contactId,
+    stage: value.status,
+    temperature: value.temperature as Lead['temperature'],
+    priority: value.priority ?? 'B',
+    source: value.source ?? 'MANUAL',
+    summary: value.summary ?? '',
+    quality: (value.dataQuality ?? 'HIGH') as Lead['quality'],
+  }
+}
+
+function toOpportunity(value: ApiOpportunity): Opportunity {
+  return {
+    id: value.id,
+    companyId: value.companyId,
+    contactId: value.contactId,
+    name: value.name,
+    stage: value.stage as OpportunityStage,
+    value: value.estimatedValue,
+    currency: value.currency as Opportunity['currency'],
+    nextAction: value.nextAction,
+  }
+}
+
+function formatDue(value?: string): string {
+  if (!value) return 'Pendiente'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Pendiente'
+  return date.toLocaleString('es-UY', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
+function toTask(value: ApiTask): CrmTask {
+  return {
+    id: value.id,
+    companyId: value.companyId,
+    title: value.title,
+    description: value.description,
+    due: formatDue(value.dueAt),
+    priority: value.priority === 'HIGH' ? 'A' : value.priority === 'MEDIUM' ? 'B' : 'C',
+    done: value.done,
+  }
+}
 
 const navItems: NavItem[] = ['Hoy', 'Pipeline', 'Empresas', 'Contactos', 'Tareas']
 const conversationStorageKey = 'suture.syna.conversation-id'
@@ -66,13 +136,6 @@ function actionDecisionError(status: number): string {
 
 function taskTitle(action: PendingAction): string {
   return action.preview.title.replace(/^Crear tarea:\s*/i, '').trim() || 'Tarea creada por Syna'
-}
-
-function taskDescription(action: PendingAction): string {
-  const detail = action.preview.details.Descripción
-  if (detail) return detail
-  const entity = action.preview.entityName ?? action.preview.entityType ?? 'la entidad vinculada'
-  return `Syna creará esta tarea para ${entity}.`
 }
 
 function taskIntent(action: PendingAction): string | null {
@@ -161,11 +224,14 @@ function LoginScreen({ onAuthenticated }: { onAuthenticated: (user: AuthUser) =>
 
 function App() {
   const [activeNav, setActiveNav] = useState<NavItem>('Hoy')
-  const [companies, setCompanies] = useState<Company[]>(initialCompanies)
-  const [contacts, setContacts] = useState<Contact[]>(initialContacts)
-  const [leads, setLeads] = useState<Lead[]>(initialLeads)
-  const [opportunities, setOpportunities] = useState<Opportunity[]>(initialOpportunities)
-  const [tasks, setTasks] = useState<CrmTask[]>(initialCrmTasks)
+  const [companies, setCompanies] = useState<Company[]>([])
+  const [contacts, setContacts] = useState<Contact[]>([])
+  const [leads, setLeads] = useState<Lead[]>([])
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([])
+  const [tasks, setTasks] = useState<CrmTask[]>([])
+  const [dashboard, setDashboard] = useState<ApiDashboard>({ opportunitiesRequiringAttention: 0, overdueFollowUps: 0, proposalsAwaitingResponse: 0, openPipelineValue: 0 })
+  const [dataLoading, setDataLoading] = useState(true)
+  const [dataError, setDataError] = useState('')
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null)
   const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 1099px)').matches)
   const [agentOpen, setAgentOpen] = useState(() => !window.matchMedia('(max-width: 1099px)').matches)
@@ -232,15 +298,97 @@ function App() {
     const amount = inStage.reduce((total, opportunity) => total + (opportunity.value ?? 0), 0)
     return { stage, label: pipelineLabels[stage], count: inStage.length, amount: amount ? `${amount.toLocaleString('es-UY')} UYU` : '—' }
   }), [opportunities])
-  const toggleTask = (id: string) => setTasks((current) => current.map((task) => task.id === id ? { ...task, done: !task.done } : task))
+  const loadCrmData = async () => {
+    setDataLoading(true)
+    setDataError('')
+    try {
+      const [companiesData, contactsData, leadsData, opportunitiesData, tasksData, dashboardData] = await Promise.all([
+        api.companies.list(),
+        api.contacts.list(),
+        api.leads.list(),
+        api.opportunities.list(),
+        api.tasks.list(),
+        api.dashboard.today(),
+      ])
+      setCompanies(companiesData.map(toCompany))
+      setContacts(contactsData.map(toContact))
+      setLeads(leadsData.map(toLead))
+      setOpportunities(opportunitiesData.map(toOpportunity))
+      setTasks(tasksData.map(toTask))
+      setDashboard(dashboardData)
+    } catch (error) {
+      setDataError(error instanceof Error ? error.message : 'No se pudieron cargar los datos del CRM.')
+    } finally {
+      setDataLoading(false)
+    }
+  }
+  const toggleTask = async (id: string) => {
+    const current = tasks.find((task) => task.id === id)
+    try {
+      const updated = await api.tasks.toggle(id, !current?.done)
+      setTasks((items) => items.map((task) => task.id === id ? toTask(updated) : task))
+    } catch (error) {
+      setDataError(error instanceof Error ? error.message : 'No se pudo actualizar la tarea.')
+    }
+  }
   const openCompany = (companyId: string) => { setSelectedCompanyId(companyId); setActiveNav('Empresas') }
-  const moveOpportunity = (id: string, stage: OpportunityStage) => setOpportunities((current) => current.map((opportunity) => opportunity.id === id ? { ...opportunity, stage } : opportunity))
+  const moveOpportunity = async (id: string, stage: OpportunityStage) => {
+    try {
+      const updated = await api.opportunities.move(id, stage)
+      setOpportunities((current) => current.map((opportunity) => opportunity.id === id ? toOpportunity(updated) : opportunity))
+    } catch (error) {
+      setDataError(error instanceof Error ? error.message : 'No se pudo mover la oportunidad.')
+    }
+  }
+  const createCompany = async (company: Company) => {
+    try {
+      const created = await api.companies.create({ name: company.name, industry: company.industry, city: company.city, country: company.country, email: company.email })
+      setCompanies((current) => [...current, toCompany(created)])
+    } catch (error) {
+      setDataError(error instanceof Error ? error.message : 'No se pudo crear la empresa.')
+    }
+  }
+  const createContact = async (contact: Contact) => {
+    try {
+      const created = await api.contacts.create({ companyId: contact.companyId, firstName: contact.name, lastName: '', role: contact.role, email: contact.email, phone: contact.phone })
+      setContacts((current) => [...current, toContact(created)])
+    } catch (error) {
+      setDataError(error instanceof Error ? error.message : 'No se pudo crear el contacto.')
+    }
+  }
+  const createLead = async (lead: Lead) => {
+    try {
+      const created = await api.leads.create({ companyId: lead.companyId, contactId: lead.contactId, status: lead.stage, temperature: lead.temperature, priority: lead.priority, source: 'MANUAL', summary: lead.summary, dataQuality: lead.quality })
+      setLeads((current) => [...current, toLead(created)])
+    } catch (error) {
+      setDataError(error instanceof Error ? error.message : 'No se pudo crear el lead.')
+    }
+  }
+  const createOpportunity = async (opportunity: Opportunity) => {
+    try {
+      const created = await api.opportunities.create({ companyId: opportunity.companyId, contactId: opportunity.contactId, name: opportunity.name, stage: opportunity.stage, nextAction: opportunity.nextAction })
+      setOpportunities((current) => [...current, toOpportunity(created)])
+    } catch (error) {
+      setDataError(error instanceof Error ? error.message : 'No se pudo crear la oportunidad.')
+    }
+  }
+  const createTask = async (task: CrmTask) => {
+    try {
+      const created = await api.tasks.create({ companyId: task.companyId, title: task.title, description: task.description, priority: task.priority === 'A' || task.priority === 'A+' ? 'HIGH' : task.priority === 'B' ? 'MEDIUM' : 'LOW' })
+      setTasks((current) => [...current, toTask(created)])
+    } catch (error) {
+      setDataError(error instanceof Error ? error.message : 'No se pudo crear la tarea.')
+    }
+  }
   useEffect(() => {
     void fetch('/api/auth/me').then(async (response) => response.ok ? response.json() as Promise<AuthUser> : null)
       .then((user) => setAuthUser(user))
       .catch(() => setAuthUser(null))
       .finally(() => setAuthReady(true))
   }, [])
+  useEffect(() => {
+    if (authUser) void loadCrmData()
+  }, [authUser])
   useEffect(() => {
     if (!authUser || !conversationId) return
     window.localStorage.setItem(conversationStorageKey, conversationId)
@@ -306,23 +454,8 @@ function App() {
       const updated = pendingAction(await response.json())
       setPendingActions((current) => current.filter((candidate) => candidate.id !== action.id))
       setMessages((current) => current.map((message) => ({ ...message, pendingActions: message.pendingActions?.map((candidate) => candidate.id === updated.id ? updated : candidate) })))
-      // Las vistas actuales trabajan con estado local: reflejamos la tarea aprobada inmediatamente.
-      if (updated.preview.entityType?.toLowerCase().includes('oportun')) setOpportunities((current) => [...current])
       if (updated.toolName === 'create_crm_task') {
-        const companyId = updated.preview.entityId ?? `syna-entity-${updated.id}`
-        const companyName = updated.preview.entityName ?? updated.preview.entityType ?? 'Entidad vinculada por Syna'
-        setCompanies((current) => current.some((company) => company.id === companyId)
-          ? current : [...current, { id: companyId, name: companyName, industry: null, city: null, country: 'Uruguay' }])
-        setTasks((current) => current.some((task) => task.id === `syna-action-${updated.id}`)
-          ? current : [...current, {
-            id: `syna-action-${updated.id}`,
-            companyId,
-            title: taskTitle(updated),
-            description: taskDescription(updated),
-            due: updated.preview.details.Vencimiento ?? 'Pendiente',
-            priority: updated.preview.details.Prioridad ?? 'A',
-            done: false,
-          }])
+        await loadCrmData()
         setSelectedCompanyId(null)
         setActiveNav('Tareas')
       }
@@ -339,6 +472,12 @@ function App() {
     setConversationId(null)
     setMessages([])
     setPendingActions([])
+    setCompanies([])
+    setContacts([])
+    setLeads([])
+    setOpportunities([])
+    setTasks([])
+    setDashboard({ opportunitiesRequiringAttention: 0, overdueFollowUps: 0, proposalsAwaitingResponse: 0, openPipelineValue: 0 })
     setAuthUser(null)
   }
 
@@ -348,6 +487,14 @@ function App() {
 
   const activeOpportunities = opportunities.filter((opportunity) => !['WON', 'LOST'].includes(opportunity.stage)).length
   const quotedValue = opportunities.filter((opportunity) => opportunity.stage === 'PROPOSAL' && opportunity.currency === 'UYU').reduce((sum, opportunity) => sum + (opportunity.value ?? 0), 0)
+  const priorityLeads = leads.map((lead, index) => ({
+    number: String(index + 1).padStart(2, '0'),
+    name: companies.find((company) => company.id === lead.companyId)?.name ?? 'Lead',
+    priority: lead.priority,
+    action: lead.summary,
+    sector: companies.find((company) => company.id === lead.companyId)?.industry ?? 'Sin rubro',
+    temperature: lead.temperature,
+  }))
   const closeAgent = () => { setAgentOpen(false); requestAnimationFrame(() => agentToggleRef.current?.focus()) }
   const navigate = (item: NavItem) => { setActiveNav(item); if (item !== 'Empresas') setSelectedCompanyId(null) }
 
@@ -362,13 +509,15 @@ function App() {
     <div className="main-column" inert={compact && agentOpen}>
       <header className="topbar"><div className="breadcrumb"><span>CRM</span><Icon name="chevron" /><strong>{activeNav}</strong></div><button ref={agentToggleRef} className={`agent-toggle ${agentOpen ? 'active' : ''}`} onClick={() => setAgentOpen(!agentOpen)} aria-expanded={agentOpen} aria-controls="syna-panel"><Icon name="spark" /><span>Syna</span><span className="toggle-label">Asistente</span></button></header>
       <main className="workspace" id="main-content" tabIndex={-1}>
+      {dataLoading && <p className="empty-state">Cargando datos del CRM…</p>}
+      {dataError && <p className="empty-state" role="alert">{dataError}</p>}
       {activeNav === 'Hoy' ? <>
         <header className="page-heading"><div><h1>Lo importante, hoy.</h1><p className="page-description">Cada conversación, un próximo paso.</p></div><button className="secondary-action" onClick={() => navigate('Pipeline')}>Abrir pipeline<Icon name="arrow" /></button></header>
         <div className="overview-line" aria-label="Resumen comercial"><button onClick={() => navigate('Pipeline')}><strong>{activeOpportunities}</strong> oportunidades activas<Icon name="arrow" /></button><button onClick={() => navigate('Empresas')}><strong>{companies.length}</strong> empresas<Icon name="arrow" /></button><button onClick={() => navigate('Tareas')}><strong>{pendingTasks}</strong> tareas pendientes<Icon name="arrow" /></button></div>
         <div className="dashboard-grid">
           <section className="panel priorities" aria-label="Prioridades comerciales">
-            <PanelTitle title="Requieren tu atención" count={priorityLeads.length} detail="Próximas acciones" />
-            <ol className="priority-list">{priorityLeads.map((item) => <li key={item.number}><button className="priority-row" onClick={() => { const company = companies.find((candidate) => candidate.name === item.name || candidate.name.startsWith(item.name)); if (company) openCompany(company.id) }} aria-label={`Abrir ${item.name}`}><span className="priority-number">{item.number}</span><span className="priority-copy"><span className="row-title"><strong>{item.name}</strong><span className={`level ${item.temperature.toLowerCase()}`}><span>{item.priority}</span>{item.temperature === 'HOT' ? 'Hot' : 'Warm'}</span></span><span className="priority-action">{item.action}</span><span className="meta"><span>{item.sector}</span>{item.person && <span>{item.person}</span>}<span><Icon name="calendar" />{item.when}</span></span></span><Icon name="arrow" /></button></li>)}</ol>
+            <PanelTitle title="Requieren tu atención" count={dashboard.opportunitiesRequiringAttention} detail="Próximas acciones" />
+            <ol className="priority-list">{priorityLeads.map((item) => <li key={item.number}><button className="priority-row" onClick={() => { const company = companies.find((candidate) => candidate.name === item.name); if (company) openCompany(company.id) }} aria-label={`Abrir ${item.name}`}><span className="priority-number">{item.number}</span><span className="priority-copy"><span className="row-title"><strong>{item.name}</strong><span className={`level ${item.temperature.toLowerCase()}`}><span>{item.priority}</span>{item.temperature === 'HOT' ? 'Hot' : 'Warm'}</span></span><span className="priority-action">{item.action}</span><span className="meta"><span>{item.sector}</span><span><Icon name="calendar" />Pendiente</span></span></span><Icon name="arrow" /></button></li>)}</ol>
             <button className="panel-footer" onClick={() => navigate('Pipeline')}>Ver oportunidades<Icon name="arrow" /></button>
           </section>
           <section className="panel pipeline" aria-label="Resumen del pipeline">
@@ -383,7 +532,7 @@ function App() {
             <button className="panel-footer" onClick={() => navigate('Tareas')}>Ver tareas<span>{pendingTasks} pendientes<Icon name="arrow" /></span></button>
           </section>
         </div>
-      </> : <CrmViews view={activeNav} companies={companies} contacts={contacts} leads={leads} opportunities={opportunities} tasks={tasks} selectedCompanyId={selectedCompanyId} onOpenCompany={openCompany} onBack={() => setSelectedCompanyId(null)} onCreateCompany={(company) => setCompanies((current) => [...current, company])} onCreateContact={(contact) => setContacts((current) => [...current, contact])} onCreateLead={(lead) => setLeads((current) => [...current, lead])} onCreateOpportunity={(opportunity) => setOpportunities((current) => [...current, opportunity])} onMoveOpportunity={moveOpportunity} onCreateTask={(task) => setTasks((current) => [...current, task])} onToggleTask={toggleTask} />}
+      </> : <CrmViews view={activeNav} companies={companies} contacts={contacts} leads={leads} opportunities={opportunities} tasks={tasks} selectedCompanyId={selectedCompanyId} onOpenCompany={openCompany} onBack={() => setSelectedCompanyId(null)} onCreateCompany={(company) => void createCompany(company)} onCreateContact={(contact) => void createContact(contact)} onCreateLead={(lead) => void createLead(lead)} onCreateOpportunity={(opportunity) => void createOpportunity(opportunity)} onMoveOpportunity={moveOpportunity} onCreateTask={(task) => void createTask(task)} onToggleTask={toggleTask} />}
       </main>
     </div>
     {compact && agentOpen && <div className="agent-backdrop" onClick={closeAgent} aria-hidden="true" />}

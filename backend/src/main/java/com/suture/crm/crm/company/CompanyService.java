@@ -25,5 +25,14 @@ public class CompanyService {
         audit.recordUserAction(tenantId, actorId, "COMPANY_CREATED", "COMPANY", company.getId(), request.name());
         return CompanyResponse.from(company);
     }
+
+    @Transactional
+    public void delete(UUID tenantId, UUID actorId, UUID id) {
+        Company company = companies.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Empresa no encontrada"));
+        companies.delete(company);
+        events.publish(tenantId, "COMPANY_DELETED", "COMPANY", id, company.getName());
+        audit.recordUserAction(tenantId, actorId, "COMPANY_DELETED", "COMPANY", id, company.getName());
+    }
     private void tenantExists(UUID tenantId) { if (!tenants.existsById(tenantId)) throw new ResourceNotFoundException("Tenant no encontrado"); }
 }

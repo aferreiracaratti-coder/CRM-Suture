@@ -1,5 +1,6 @@
-package com.suture.crm.crm.contact;
+package com.suture.crm.crm.lead;
 
+import com.suture.crm.auth.CrmUserPrincipal;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -11,27 +12,29 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import com.suture.crm.auth.CrmUserPrincipal;
 
 @RestController
-@RequestMapping("/api/contacts")
-public class ContactController {
-    private final ContactService service;
-    ContactController(ContactService service) { this.service = service; }
+@RequestMapping("/api/crm/leads")
+public class CrmLeadController {
+    private final CrmLeadService service;
+    CrmLeadController(CrmLeadService service) { this.service = service; }
 
     @GetMapping
-    public List<ContactResponse> list(@AuthenticationPrincipal CrmUserPrincipal principal, @RequestParam(required = false) UUID companyId) {
-        return companyId == null ? service.listAll(principal.tenantId()) : service.list(principal.tenantId(), companyId);
+    public List<CrmLeadService.CrmLeadResponse> list(@AuthenticationPrincipal CrmUserPrincipal principal) {
+        return service.list(principal.tenantId());
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ContactResponse create(@AuthenticationPrincipal CrmUserPrincipal principal, @Valid @RequestBody CreateContactRequest request) {
+    public CrmLeadService.CrmLeadResponse create(@AuthenticationPrincipal CrmUserPrincipal principal,
+                                                 @Valid @RequestBody CrmLeadService.CreateCrmLeadRequest request) {
         return service.create(principal.tenantId(), principal.id(), request);
     }
+
     @DeleteMapping("/{id}")
-    public void delete(@AuthenticationPrincipal CrmUserPrincipal principal, @PathVariable UUID id) { service.delete(principal.tenantId(), principal.id(), id); }
+    public void delete(@AuthenticationPrincipal CrmUserPrincipal principal, @PathVariable UUID id) {
+        service.delete(principal.tenantId(), principal.id(), id);
+    }
 }
