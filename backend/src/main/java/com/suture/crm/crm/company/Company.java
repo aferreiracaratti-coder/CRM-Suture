@@ -29,6 +29,12 @@ public class Company {
     private String source;
     @Column(nullable = false)
     private String status;
+    @Column(name = "owner_id")
+    private UUID ownerId;
+    @Column(name = "created_by_id")
+    private UUID createdById;
+    @Column(name = "updated_by_id")
+    private UUID updatedById;
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
     @Column(name = "updated_at", nullable = false)
@@ -36,11 +42,12 @@ public class Company {
 
     protected Company() { }
 
-    Company(UUID tenantId, String name, String website, String address, String phone, String whatsapp, String email,
+    Company(UUID tenantId, UUID ownerId, String name, String website, String address, String phone, String whatsapp, String email,
             String industry, String city, String country, String source) {
         this.id = UUID.randomUUID(); this.tenantId = tenantId; this.name = name; this.website = website;
         this.address = address; this.phone = phone; this.whatsapp = whatsapp; this.email = email;
         this.industry = industry; this.city = city; this.country = country; this.source = source; this.status = "ACTIVE";
+        this.ownerId = ownerId; this.createdById = ownerId;
     }
     @PrePersist void onCreate() { createdAt = OffsetDateTime.now(); updatedAt = createdAt; }
     @PreUpdate void onUpdate() { updatedAt = OffsetDateTime.now(); }
@@ -49,4 +56,7 @@ public class Company {
     public String getCountry() { return country; } public String getSource() { return source; } public String getStatus() { return status; }
     public String getAddress() { return address; } public String getPhone() { return phone; } public String getWhatsapp() { return whatsapp; }
     public String getEmail() { return email; }
+    public UUID getOwnerId() { return ownerId; }
+    public UUID getCreatedById() { return createdById; }
+    public UUID getUpdatedById() { return updatedById; }
 }

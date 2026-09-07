@@ -27,12 +27,12 @@ public class ContactService {
     }
 
     @Transactional
-    public ContactResponse create(UUID tenantId, CreateContactRequest request) {
+    public ContactResponse create(UUID tenantId, UUID actorId, CreateContactRequest request) {
         assertCompanyBelongsToTenant(tenantId, request.companyId());
-        Contact contact = contacts.save(new Contact(tenantId, request.companyId(), request));
+        Contact contact = contacts.save(new Contact(tenantId, actorId, request.companyId(), request));
         String name = request.firstName() + (request.lastName() == null ? "" : " " + request.lastName());
         events.publish(tenantId, "CONTACT_CREATED", "CONTACT", contact.getId(), name);
-        audit.recordSystemAction(tenantId, "CONTACT_CREATED", "CONTACT", contact.getId(), name);
+        audit.recordUserAction(tenantId, actorId, "CONTACT_CREATED", "CONTACT", contact.getId(), name);
         return ContactResponse.from(contact);
     }
 

@@ -13,7 +13,7 @@ type ActionPreview = { title: string; entityType?: string; entityName?: string; 
 type PendingAction = { id: string; conversationId?: string; toolName: string; riskLevel: string; status: string; expiresAt: string; preview: ActionPreview; result?: Record<string, unknown>; failureReason?: string }
 type ChatMessage = { id: string; role: ChatRole; content: string; pendingActions?: PendingAction[] }
 type ConversationPayload = { messages: Array<{ id: string; role: string; content: string }> }
-type AuthUser = { id: string; email: string; name: string; roles: string[] }
+type AuthUser = { id: string; tenantId: string; email: string; name: string; roles: string[] }
 
 const navItems: NavItem[] = ['Hoy', 'Pipeline', 'Empresas', 'Contactos', 'Tareas']
 const conversationStorageKey = 'suture.syna.conversation-id'
@@ -357,7 +357,7 @@ function App() {
       <div className="wordmark"><span className="brand-symbol" aria-hidden="true">s.</span><span>SUTURE<small>CRM comercial</small></span></div>
       <div className="nav-label">Espacio de trabajo</div>
       <nav aria-label="Navegación principal">{navItems.map((item) => <button key={item} onClick={() => navigate(item)} aria-current={activeNav === item ? 'page' : undefined} className={`nav-item ${activeNav === item ? 'selected' : ''}`}><Icon name={item} /><span>{item}</span>{item === 'Tareas' && <span className="nav-count">{pendingTasks}</span>}</button>)}</nav>
-      <div className="sidebar-bottom"><span className="workspace-caption">Suture Sistemas</span><button className="profile" onClick={() => void signOut()} aria-label={`Cerrar sesión de ${authUser.name}`} title="Cerrar sesión"><span className="avatar">{initials}</span><span className="profile-copy"><strong>{authUser.name}</strong><small>{authUser.roles.includes('CRM_ADMIN') ? 'Administrador' : 'Usuario CRM'}</small></span><Icon name="logout" /></button></div>
+      <div className="sidebar-bottom"><span className="workspace-caption">Organización · {authUser.tenantId.slice(0, 8)}</span><button className="profile" onClick={() => void signOut()} aria-label={`Cerrar sesión de ${authUser.name}`} title="Cerrar sesión"><span className="avatar">{initials}</span><span className="profile-copy"><strong>{authUser.name}</strong><small>{authUser.roles.includes('CRM_ADMIN') ? 'Administrador' : 'Usuario CRM'}</small></span><Icon name="logout" /></button></div>
     </aside>
     <div className="main-column" inert={compact && agentOpen}>
       <header className="topbar"><div className="breadcrumb"><span>CRM</span><Icon name="chevron" /><strong>{activeNav}</strong></div><button ref={agentToggleRef} className={`agent-toggle ${agentOpen ? 'active' : ''}`} onClick={() => setAgentOpen(!agentOpen)} aria-expanded={agentOpen} aria-controls="syna-panel"><Icon name="spark" /><span>Syna</span><span className="toggle-label">Asistente</span></button></header>

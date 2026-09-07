@@ -64,7 +64,7 @@ public class SynaReadService {
     private String leadSql(boolean detail) {
         return """
                 SELECT l.id, COALESCE(NULLIF(trim(concat_ws(' ', ct.first_name, ct.last_name)), ''), 'Lead ' || left(l.id::text, 8)) AS name,
-                       co.name AS company, l.status, NULL::text AS owner, l.next_contact_at AS next_action_at,
+                       co.name AS company, l.status, l.owner_id::text AS owner, l.next_contact_at AS next_action_at,
                        l.created_at, l.updated_at
                   FROM lead l JOIN company co ON co.id = l.company_id
              LEFT JOIN contact ct ON ct.id = l.contact_id
@@ -78,7 +78,7 @@ public class SynaReadService {
 
     private String customerSql(boolean detail) {
         return """
-                SELECT c.id, c.name, c.name AS company, c.status AS lifecycle, NULL::text AS owner, c.updated_at
+                SELECT c.id, c.name, c.name AS company, c.status AS lifecycle, c.owner_id::text AS owner, c.updated_at
                   FROM company c
                  WHERE c.tenant_id = :tenantId
                 """ + (detail ? "AND c.id = :id" : """
@@ -90,7 +90,7 @@ public class SynaReadService {
 
     private String taskSql(boolean detail) {
         return """
-                SELECT t.id, t.title, t.status, t.assigned_to AS assignee, t.due_at,
+                SELECT t.id, t.title, t.status, COALESCE(t.assignee_id::text, t.assigned_to) AS assignee, t.due_at,
                        CASE WHEN t.opportunity_id IS NOT NULL THEN 'deal'
                             WHEN t.company_id IS NOT NULL THEN 'customer'
                             WHEN t.contact_id IS NOT NULL THEN 'contact' END AS related_type,
@@ -110,7 +110,7 @@ public class SynaReadService {
     private String dealSql(boolean detail) {
         return """
                 SELECT o.id, o.name, c.name AS company, o.stage, o.estimated_value AS amount, o.currency,
-                       NULL::text AS owner, o.expected_close_date AS close_date,
+                       o.owner_id::text AS owner, o.expected_close_date AS close_date,
                        o.next_action_date::timestamptz AS next_action_at, o.created_at, o.updated_at
                   FROM opportunity o JOIN company c ON c.id = o.company_id
                  WHERE o.tenant_id = :tenantId

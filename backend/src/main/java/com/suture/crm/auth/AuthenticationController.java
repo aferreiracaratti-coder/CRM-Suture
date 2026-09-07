@@ -11,6 +11,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -47,11 +48,14 @@ public class AuthenticationController {
     }
 
     @GetMapping("/me")
-    public UserResponse me(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+    public UserResponse me(@AuthenticationPrincipal CrmUserPrincipal principal) {
+        if (principal == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
         }
-        return currentUser(authentication);
+        CrmUser user = users.findByEmailIgnoreCase(principal.getUsername())
+                .filter(CrmUser::isActive)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required"));
+        return userResponse(user);
     }
 
     @PostMapping("/logout")
@@ -65,9 +69,13 @@ public class AuthenticationController {
         CrmUser user = users.findByEmailIgnoreCase(authentication.getName())
                 .filter(CrmUser::isActive)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required"));
-        return new UserResponse(user.getId().toString(), user.getEmail(), user.getDisplayName(), user.roleList());
+        return userResponse(user);
+    }
+
+    private UserResponse userResponse(CrmUser user) {
+        return new UserResponse(user.getId().toString(), user.getTenantId().toString(), user.getEmail(), user.getDisplayName(), user.roleList());
     }
 
     public record LoginRequest(@Email @NotBlank String email, @NotBlank String password) { }
-    public record UserResponse(String id, String email, String name, java.util.List<String> roles) { }
+    public record UserResponse(String id, String tenantId, String email, String name, java.util.List<String> roles) { }
 }

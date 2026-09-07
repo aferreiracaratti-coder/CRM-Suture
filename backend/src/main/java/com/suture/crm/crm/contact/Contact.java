@@ -23,15 +23,20 @@ public class Contact {
     private String instagram;
     private String linkedin;
     private String notes;
+    @Column(name = "created_by_id")
+    private UUID createdById;
+    @Column(name = "updated_by_id")
+    private UUID updatedById;
     @Column(name = "created_at", nullable = false) private OffsetDateTime createdAt;
     @Column(name = "updated_at", nullable = false) private OffsetDateTime updatedAt;
 
     protected Contact() { }
 
-    Contact(UUID tenantId, UUID companyId, CreateContactRequest request) {
+    Contact(UUID tenantId, UUID actorId, UUID companyId, CreateContactRequest request) {
         this.id = UUID.randomUUID();
         this.tenantId = tenantId;
         this.companyId = companyId;
+        this.createdById = actorId;
         this.firstName = request.firstName();
         this.lastName = request.lastName();
         this.role = request.role();
@@ -56,4 +61,6 @@ public class Contact {
     public String getInstagram() { return instagram; }
     public String getLinkedin() { return linkedin; }
     public String getNotes() { return notes; }
+    public UUID getCreatedById() { return createdById; }
+    public UUID getUpdatedById() { return updatedById; }
 }

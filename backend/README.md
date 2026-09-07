@@ -28,6 +28,8 @@ src/main/java/com/suture/crm/
 ## Convenciones que quedan fijadas desde Fase 1
 
 - Todas las entidades comerciales incluyen `tenant_id`.
+- El tenant se deriva de la sesión autenticada; no se acepta `X-Tenant-Id`
+  como fuente de confianza.
 - Los cambios pasan por servicios de dominio; los controladores no escriben repositorios directamente.
 - Las acciones aceptan un `Actor` (`USER`, `AGENT`, `SYSTEM`) y generan auditoría/eventos.
 - El futuro agente usa el mismo `Tool / Action Layer` que la UI. No accede a SQL.
@@ -44,15 +46,18 @@ cd backend
 ./mvnw spring-boot:run
 ```
 
-La primera ejecución aplica `V1__crm_mvp_schema.sql` y crea el tenant inicial `Suture Sistemas` con ID `00000000-0000-0000-0000-000000000001`.
+La primera ejecución aplica las migraciones `V1` a `V7` y crea el tenant inicial
+`Suture Sistemas` con ID `00000000-0000-0000-0000-000000000001`.
 
 ## Verticales disponibles
 
 - `GET /api/health`
-- `GET /api/companies` y `POST /api/companies` con header `X-Tenant-Id`.
-- `GET /api/leads` con prioridad, calidad de datos, etapa y próximo contacto.
+- `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`.
+- `GET /api/users` y mutaciones de usuarios, sólo para `CRM_ADMIN`.
+- `GET /api/companies` y `POST /api/companies`.
+- `GET /api/leads`, `/api/customers`, `/api/tasks` y `/api/deals` para Syna.
 - `GET /api/contacts?companyId={id}` y `POST /api/contacts`.
 - `GET /api/opportunities`, `POST /api/opportunities` y `PATCH /api/opportunities/{id}/stage`.
-- `GET /api/dashboard/today` con el mismo header.
+- `GET /api/dashboard/today`.
 
 Crear empresas, contactos u oportunidades persiste un evento de dominio y una entrada de auditoría. Los cambios de etapa de oportunidad siguen el mismo recorrido por servicios de dominio.

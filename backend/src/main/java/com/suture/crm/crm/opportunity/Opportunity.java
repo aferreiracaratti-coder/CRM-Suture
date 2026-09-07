@@ -30,16 +30,20 @@ public class Opportunity {
     @Column(name = "next_action") private String nextAction;
     @Column(name = "next_action_date") private LocalDate nextActionDate;
     @Column(name = "lost_reason") private String lostReason;
+    @Column(name = "owner_id") private UUID ownerId;
+    @Column(name = "created_by_id") private UUID createdById;
+    @Column(name = "updated_by_id") private UUID updatedById;
     @Column(name = "created_at", nullable = false) private OffsetDateTime createdAt;
     @Column(name = "updated_at", nullable = false) private OffsetDateTime updatedAt;
 
     protected Opportunity() { }
 
-    Opportunity(UUID tenantId, CreateOpportunityRequest request) {
+    Opportunity(UUID tenantId, UUID actorId, CreateOpportunityRequest request) {
         this.id = UUID.randomUUID(); this.tenantId = tenantId; this.companyId = request.companyId(); this.contactId = request.contactId();
         this.name = request.name(); this.stage = request.stage() == null ? "NEW" : request.stage(); this.estimatedValue = request.estimatedValue();
         this.currency = request.currency() == null ? "UYU" : request.currency(); this.probability = request.probability();
         this.expectedCloseDate = request.expectedCloseDate(); this.nextAction = request.nextAction(); this.nextActionDate = request.nextActionDate();
+        this.ownerId = actorId; this.createdById = actorId;
     }
 
     void moveTo(String stage, String lostReason) { this.stage = stage; this.lostReason = lostReason; }
@@ -59,4 +63,7 @@ public class Opportunity {
     public String getNextAction() { return nextAction; }
     public LocalDate getNextActionDate() { return nextActionDate; }
     public String getLostReason() { return lostReason; }
+    public UUID getOwnerId() { return ownerId; }
+    public UUID getCreatedById() { return createdById; }
+    public UUID getUpdatedById() { return updatedById; }
 }

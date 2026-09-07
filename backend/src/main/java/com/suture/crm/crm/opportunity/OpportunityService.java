@@ -29,21 +29,21 @@ public class OpportunityService {
     }
 
     @Transactional
-    public OpportunityResponse create(UUID tenantId, CreateOpportunityRequest request) {
+    public OpportunityResponse create(UUID tenantId, UUID actorId, CreateOpportunityRequest request) {
         assertReferencesBelongToTenant(tenantId, request.companyId(), request.contactId());
-        Opportunity opportunity = opportunities.save(new Opportunity(tenantId, request));
+        Opportunity opportunity = opportunities.save(new Opportunity(tenantId, actorId, request));
         events.publish(tenantId, "OPPORTUNITY_CREATED", "OPPORTUNITY", opportunity.getId(), opportunity.getName());
-        audit.recordSystemAction(tenantId, "OPPORTUNITY_CREATED", "OPPORTUNITY", opportunity.getId(), opportunity.getName());
+        audit.recordUserAction(tenantId, actorId, "OPPORTUNITY_CREATED", "OPPORTUNITY", opportunity.getId(), opportunity.getName());
         return OpportunityResponse.from(opportunity);
     }
 
     @Transactional
-    public OpportunityResponse move(UUID tenantId, UUID id, MoveOpportunityRequest request) {
+    public OpportunityResponse move(UUID tenantId, UUID actorId, UUID id, MoveOpportunityRequest request) {
         Opportunity opportunity = opportunities.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Oportunidad no encontrada"));
         opportunity.moveTo(request.stage(), request.lostReason());
         events.publish(tenantId, "OPPORTUNITY_STAGE_CHANGED", "OPPORTUNITY", opportunity.getId(), opportunity.getName());
-        audit.recordSystemAction(tenantId, "OPPORTUNITY_STAGE_CHANGED", "OPPORTUNITY", opportunity.getId(), opportunity.getName());
+        audit.recordUserAction(tenantId, actorId, "OPPORTUNITY_STAGE_CHANGED", "OPPORTUNITY", opportunity.getId(), opportunity.getName());
         return OpportunityResponse.from(opportunity);
     }
 
